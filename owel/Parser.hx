@@ -6,11 +6,13 @@ import sys.io.File;
 class Parser
 {
 
+    private var _keywords:Array<String>;
     private var _tokens:Array<Token>;
 
     public function new()
     {
         _tokens = [];
+        _keywords = [ "define", "routing", "client", "server", "use", "route", "structure" ];
     }
 
     public function parseFile(file:String)
@@ -42,6 +44,13 @@ class Parser
                 {
                     if (isIdentifier)
                         isIdentifier = false;
+                    else
+                    {
+                        if (!isAKeyword(currentValue))
+                        {
+                            throw '$file ($line): Identifier `$currentValue` is not a valid keyword.';
+                        }
+                    }
                 }
                 else
                 {
@@ -153,6 +162,16 @@ class Parser
             trace("Identifier: " + t.identifier);
             trace("Display Value: " + t.displayValue);
         }
+    }
+
+    function isAKeyword(value:String)
+    {
+        for (k in _keywords)
+        {
+            if (k == value)
+                return true;
+        }
+        return false;
     }
 
 }
