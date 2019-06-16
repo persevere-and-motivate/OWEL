@@ -1,0 +1,10 @@
+{
+    "name": "owel",
+    "description": "A client and server-side code generation utility for web development.",
+    "license": "MIT",
+    "url": "https://github.com/persevere-and-motivate/OWEL",
+    "contributors": ["tienery"],
+    "releasenote": "Initial release.",
+    "tags": [ "utility", "web", "js", "php" ],
+    "version": "1.0.0"
+}
