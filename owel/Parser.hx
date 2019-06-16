@@ -136,7 +136,7 @@ class Parser
                 {
                     currentToken.identifier += char;
                 }
-                else if (isStringValue)
+                else
                 {
                     currentValue += char;
                 }
