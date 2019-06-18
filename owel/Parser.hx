@@ -102,7 +102,12 @@ class Parser
                 if (!isStringValue) // character is not wrapped around quotation marks
                 {
                     if (isIdentifier) // the last time we parsed, we identified an '@' symbol.
+                    {
+                        if (lastHardChar == "@")
+                            error("Field Identifier has not been given a name.", file, i, i);
+                        
                         isIdentifier = false;
+                    }
                     else if (isOption && isKey && lastHardChar != ":") // check for spaces in option key context
                         spaceExists = true;
                     else
