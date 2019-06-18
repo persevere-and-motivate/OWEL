@@ -3,6 +3,7 @@ package owel; #if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
+import owel.OwelOptions.OptionGet;
 import owel.TokenType;
 import sys.io.File;
 
@@ -114,8 +115,7 @@ class Parser
                             var isPartOfDefine = false;
                             if (currentToken != null)
                                 isPartOfDefine = (currentToken.type == TOKEN_DEFINE 
-                                    || currentToken.type == TOKEN_STRUCTURE
-                                    || currentToken.type == TOKEN_ROUTING);
+                                    || currentToken.type == TOKEN_STRUCTURE);
 
                             if (!isKeyword && !isOption && !isPartOfDefine)
                             {
@@ -215,6 +215,9 @@ class Parser
                 {
                     if (currentToken != null)
                     {
+                        if (currentToken.displayValue == "" && currentToken.type == TOKEN_FIELD)
+                            error("The last field you input does not have a display value.", file, i, i);
+                        
                         checkAndCreateOption(file, i);
                         _tokens.push(currentToken);
                     }
@@ -377,7 +380,18 @@ class Parser
 
     public function executeTypes()
     {
-        executeSharedTypes();
+        if (_tokens.length > 0)
+        {
+            if (Context.defined("js")) // client-side
+            {
+                executeSharedTypes();   
+            }
+            else if (Context.defined("php")) // server-side
+            {
+                executeSharedTypes();
+                executeServerTypes();
+            }
+        }
     }
 
     function executeSharedTypes()
@@ -408,6 +422,9 @@ class Parser
             }
             else if (t.type == TOKEN_FIELD)
             {
+                if (!doesStructureDefineTokenExist(i))
+                    error("Field is not defined inside of a `structure` definition.", t.fileResource, i, i);
+
                 var name = "";
                 if (t.options.exists("id"))
                 {
@@ -419,8 +436,8 @@ class Parser
                     name = t.displayValue;
                     name = name.replace(" ", "_").toLowerCase();
                 }
-                
-                var type = options.get(t.identifier);
+
+                var type = options.get(t.identifier, GET_CLIENT_TYPE);
                 if (type == "")
                     Context.error('Identifier `${t.identifier}` has not been defined or the type representing the identifier is empty.', Context.currentPos());
 
@@ -454,7 +471,91 @@ class Parser
 
     function executeServerTypes()
     {
+        var typeName = "";
+        var typeFields = [];
 
+        for (i in 0..._tokens.length)
+        {
+            var t = _tokens[i];
+
+            if (t.type == TOKEN_STRUCTURE)
+            {
+                if (typeName != "")
+                {
+                    var def:TypeDefinition = {
+                        fields: typeFields,
+                        kind: TDClass({
+                            name: "Object",
+                            pack: [ "sys", "db" ]
+                        }),
+                        name: typeName,
+                        pack: [ "data" ],
+                        pos: Context.currentPos(),
+                    };
+
+                    Context.defineType(def);
+                }
+
+                typeName = t.identifier;
+            }
+            else if (t.type == TOKEN_FIELD)
+            {
+                if (!doesStructureDefineTokenExist(i))
+                    error("Field is not defined inside of a `structure` definition.", t.fileResource, i, i);
+
+                var name = "";
+                if (t.options.exists("id"))
+                {
+                    name = t.options.get("id");
+                    name = name.replace(" ", "_").toLowerCase();
+                }
+                else
+                {
+                    name = t.displayValue;
+                    name = name.replace(" ", "_").toLowerCase();
+                }
+
+                var type = options.get(t.identifier, GET_SERVER_TYPE);
+                if (type == "")
+                    Context.error('Identifier `${t.identifier}` has not been defined or the type representing the identifier is empty.', Context.currentPos());
+                
+                typeFields.push({
+                    kind: FVar(Context.toComplexType(Context.getType(type))),
+                    pos: Context.currentPos(),
+                    name: name,
+                    access: [APublic]
+                });
+            }
+
+            if (i == _tokens.length - 1)
+            {
+                var def:TypeDefinition = {
+                    fields: typeFields,
+                    kind: TDClass({
+                        name: "Object",
+                        pack: [ "sys", "db" ]
+                    }),
+                    name: typeName,
+                    pack: [ "data" ],
+                    pos: Context.currentPos(),
+                };
+
+                Context.defineType(def);
+            }
+        }
+    }
+
+    function doesStructureDefineTokenExist(current:Int)
+    {
+        var i = current;
+        while (i > -1)
+        {
+            if (_tokens[i].type == TOKEN_STRUCTURE)
+                return true;
+            
+            i--;
+        }
+        return false;
     }
 
 }

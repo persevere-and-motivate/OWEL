@@ -16,20 +16,39 @@ class Builder
     {
         options.addIdentifier("ID");
         options.setClientStructureType("Int");
+        options.setServerClassType("sys.db.Types.SId");
+
         options.addIdentifier("TextField");
         options.setClientStructureType("String");
+        options.setServerClassType("sys.db.Types.STinyText");
+
         options.addIdentifier("Numeric");
         options.setClientStructureType("Int");
+        options.setServerClassType("sys.db.Types.SInt");
+
         options.addIdentifier("Date");
         options.setClientStructureType("Date");
+        options.setServerClassType("sys.db.Types.SDate");
+
         options.addIdentifier("Time");
         options.setClientStructureType("Date");
+        options.setServerClassType("sys.db.Types.STimeStamp");
+
+        options.addIdentifier("DateTime");
+        options.setClientStructureType("Date");
+        options.setServerClassType("sys.db.Types.SDateTime");
+
         options.addIdentifier("CheckBox");
         options.setClientStructureType("Bool");
+        options.setServerClassType("sys.db.Types.SBool");
+
         options.addIdentifier("ComboBox");
         options.setClientStructureType("Int");
+        options.setServerClassType("sys.db.Types.SInt");
+
         options.addIdentifier("TextArea");
         options.setClientStructureType("String");
+        options.setServerClassType("sys.db.Types.SText");
 
         return options;
     }
@@ -59,11 +78,6 @@ class Builder
 
             parser.executeTypes();
         }
-    }
-
-    public static function finalise()
-    {
-        
     }
 
 }
