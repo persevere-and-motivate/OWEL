@@ -18,6 +18,10 @@ The latest version can be installed from here through haxe:
 
 OWEL depends on `record-macros` for server-side code generation. You can install this from [here](https://github.com/HaxeFoundation/record-macros).
 
+Include in your `*.hxml` file:
+
+`-lib owel`
+
 ## Understanding the Project
 OWEL contains a macro context and the scripting language itself.
 
