@@ -52,7 +52,7 @@ class OwelOptions
 
 }
 
-enum abstract OptionGet(Int) from Int to Int
+@:enum abstract OptionGet(Int) from Int to Int
 {
     var GET_CLIENT_TYPE         =   0;
     var GET_SERVER_TYPE         =   1;

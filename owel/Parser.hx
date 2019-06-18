@@ -393,8 +393,8 @@ class Parser
             }
             else if (Context.defined("php")) // server-side
             {
-                executeSharedTypes();
-                executeServerTypes();
+                var values = executeSharedTypes();
+                executeServerTypes(values);
             }
         }
     }
@@ -403,6 +403,7 @@ class Parser
     {
         var typeName = "";
         var typeFields = [];
+        var typeValues = [];
 
         for (i in 0..._tokens.length)
         {
@@ -457,6 +458,7 @@ class Parser
                         }
                     ]
                 });
+                typeValues.push(name);
             }
 
             if (i == _tokens.length - 1)
@@ -472,9 +474,67 @@ class Parser
                 Context.defineType(def);
             }
         }
+
+        return typeValues;
     }
 
-    function executeServerTypes()
+    function defineClass(typeName:String, typeFields:Array<Field>, sharedTypeMembers:Array<String>)
+    {
+        var type = Context.toComplexType(Context.getType("shared.T" + typeName));
+        var assigns = [];
+
+        for (i in 0...sharedTypeMembers.length)
+        {
+            var mName:String = sharedTypeMembers[i];
+
+            var e = {
+                expr: EField(macro this, mName),
+                pos: Context.currentPos()
+            };
+
+            assigns.push({
+                field: mName,
+				expr: e
+            });
+        }
+
+        var const_type = { expr: EObjectDecl(assigns), pos: Context.currentPos() };
+
+        var toTypedefBody = macro {
+            var data:$type = ${const_type};
+            return data;
+        };
+
+        var toTypedefFunc:Function = {
+            expr: toTypedefBody,
+            ret: type,
+            args: []
+        };
+
+        var toTypedefField:Field = {
+            kind: FFun(toTypedefFunc),
+            access: [ APublic ],
+            name: "toTypedef",
+            pos: Context.currentPos()
+        };
+
+        typeFields.push(toTypedefField);
+
+        var def:TypeDefinition = {
+            fields: typeFields,
+            kind: TDClass({
+                name: "Object",
+                pack: [ "sys", "db" ]
+            }),
+            name: typeName,
+            pack: [ "data" ],
+            pos: Context.currentPos()
+        };
+
+        Context.defineType(def);
+    }
+
+    function executeServerTypes(sharedTypeMembers:Array<String>)
     {
         var typeName = "";
         var typeFields = [];
@@ -487,18 +547,7 @@ class Parser
             {
                 if (typeName != "")
                 {
-                    var def:TypeDefinition = {
-                        fields: typeFields,
-                        kind: TDClass({
-                            name: "Object",
-                            pack: [ "sys", "db" ]
-                        }),
-                        name: typeName,
-                        pack: [ "data" ],
-                        pos: Context.currentPos(),
-                    };
-
-                    Context.defineType(def);
+                    defineClass(typeName, typeFields, sharedTypeMembers);
                 }
 
                 typeName = t.identifier;
@@ -534,18 +583,7 @@ class Parser
 
             if (i == _tokens.length - 1)
             {
-                var def:TypeDefinition = {
-                    fields: typeFields,
-                    kind: TDClass({
-                        name: "Object",
-                        pack: [ "sys", "db" ]
-                    }),
-                    name: typeName,
-                    pack: [ "data" ],
-                    pos: Context.currentPos(),
-                };
-
-                Context.defineType(def);
+                defineClass(typeName, typeFields, sharedTypeMembers);
             }
         }
     }

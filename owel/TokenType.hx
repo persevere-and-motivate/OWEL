@@ -1,6 +1,6 @@
 package owel; #if macro
 
-enum abstract TokenType(Int) from Int to Int
+@:enum abstract TokenType(Int) from Int to Int
 {
     var TOKEN_FIELD         =   0;
     var TOKEN_ROUTE         =   1;
