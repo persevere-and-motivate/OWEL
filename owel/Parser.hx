@@ -1,20 +1,27 @@
 package owel; #if macro
 
+import haxe.macro.Expr;
 import haxe.macro.Context;
 
 import owel.TokenType;
 import sys.io.File;
 
+using StringTools;
+
 class Parser
 {
+
+    private var options:OwelOptions;
 
     private var _keywords:Array<String>;
     private var _tokens:Array<Token>;
 
-    public function new()
+    public function new(options:OwelOptions)
     {
         _tokens = [];
         _keywords = [ "define", "routing", "client", "server", "use", "route", "structure" ];
+
+        this.options = options;
     }
 
     public function parseFile(file:String)
@@ -338,17 +345,10 @@ class Parser
                 lastHardChar = char;
         }
 
-        // for (t in _tokens)
-        // {
-        //     trace("Identifier: " + t.identifier);
-        //     trace("Display Value: " + t.displayValue);
-        //     trace("Options: " + t.options);
-        // }
-
         var spent:Float = Sys.cpuTime() - time;
         var milliseconds = spent * 1000;
 
-        print('Time spent on file "$file": $milliseconds ms.');
+        //print('Time spent on file "$file": $milliseconds ms.');
     }
 
     function isAKeyword(value:String)
@@ -373,6 +373,88 @@ class Parser
             min: first,
             max: last
         }));
+    }
+
+    public function executeTypes()
+    {
+        executeSharedTypes();
+    }
+
+    function executeSharedTypes()
+    {
+        var typeName = "";
+        var typeFields = [];
+
+        for (i in 0..._tokens.length)
+        {
+            var t = _tokens[i];
+
+            if (t.type == TOKEN_STRUCTURE)
+            {
+                if (typeName != "")
+                {
+                    var def:TypeDefinition = {
+                        fields: typeFields,
+                        kind: TDAlias(TAnonymous(typeFields)),
+                        name: typeName,
+                        pack: [ "shared" ],
+                        pos: Context.currentPos()
+                    };
+
+                    Context.defineType(def);
+                }
+
+                typeName = "T" + t.identifier;
+            }
+            else if (t.type == TOKEN_FIELD)
+            {
+                var name = "";
+                if (t.options.exists("id"))
+                {
+                    name = t.options.get("id");
+                    name = name.replace(" ", "_").toLowerCase();
+                }
+                else
+                {
+                    name = t.displayValue;
+                    name = name.replace(" ", "_").toLowerCase();
+                }
+                
+                var type = options.get(t.identifier);
+                if (type == "")
+                    Context.error('Identifier `${t.identifier}` has not been defined or the type representing the identifier is empty.', Context.currentPos());
+
+                typeFields.push({
+                    kind: FVar(Context.toComplexType(Context.getType(type))),
+                    pos: Context.currentPos(),
+                    name: name,
+                    meta: [
+                        {
+                            name: ":optional",
+                            pos: Context.currentPos()
+                        }
+                    ]
+                });
+            }
+
+            if (i == _tokens.length - 1)
+            {
+                var def:TypeDefinition = {
+                    fields: typeFields,
+                    kind: TDAlias(TAnonymous(typeFields)),
+                    name: typeName,
+                    pack: [ "shared" ],
+                    pos: Context.currentPos()
+                };
+
+                Context.defineType(def);
+            }
+        }
+    }
+
+    function executeServerTypes()
+    {
+
     }
 
 }

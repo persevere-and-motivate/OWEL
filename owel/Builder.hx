@@ -12,9 +12,34 @@ class Builder
 
     private static var parser:Parser;
 
+    static function initJSIdentifiers(options:OwelOptions)
+    {
+        options.addIdentifier("ID");
+        options.setClientStructureType("Int");
+        options.addIdentifier("TextField");
+        options.setClientStructureType("String");
+        options.addIdentifier("Numeric");
+        options.setClientStructureType("Int");
+        options.addIdentifier("Date");
+        options.setClientStructureType("Date");
+        options.addIdentifier("Time");
+        options.setClientStructureType("Date");
+        options.addIdentifier("CheckBox");
+        options.setClientStructureType("Bool");
+        options.addIdentifier("ComboBox");
+        options.setClientStructureType("Int");
+        options.addIdentifier("TextArea");
+        options.setClientStructureType("String");
+
+        return options;
+    }
+
     public static function generateTypes(folder:String)
     {
-        parser = new Parser();
+        var options = new OwelOptions();
+        options = initJSIdentifiers(options);
+
+        parser = new Parser(options);
 
         if (FileSystem.exists(folder))
         {
@@ -31,6 +56,8 @@ class Builder
                     }
                 }
             }
+
+            parser.executeTypes();
         }
     }
 
