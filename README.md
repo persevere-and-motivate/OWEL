@@ -29,7 +29,7 @@ Firstly, you need to add a new line to your hxml file which uses the initialisat
 
 `--macro owel.Builder.generateTypes("owel/")`
 
-This is the function that will begin generating either the client or server-side code depending on which target language you use. Currently, OWEL only supports PHP for the server-side and JavaScript for the client. The first argument is the folder which contains `*.owel` files that the parser within OWEL uses to generate code.
+This is the function that will begin generating either the client or server-side code depending on which target language you use. The first argument is the folder which contains `*.owel` files that the parser within OWEL uses to generate code.
 
 ## Creating an OWEL file
 `*.owel` files have very simple structure:
