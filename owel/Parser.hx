@@ -5,6 +5,7 @@ import haxe.macro.Context;
 
 import owel.OwelOptions.OptionGet;
 import owel.TokenType;
+import owel.CharToken;
 import sys.io.File;
 
 using StringTools;
@@ -32,13 +33,9 @@ class Parser
         var contents = File.getContent(file);
         var currentToken:Token = null;
         var currentValue = "";
-        var isIdentifier = false;
-        var isStringValue = false;
-        var wasStringValueForOption = false;
-        var isEscaping = false;
-        var isOption = false;
-        var isKey = false;
-        var spaceExists = false;
+
+        var flags:UInt = 0;
+
         var key = "";
         var value = "";
         var stringCharUsed = -1;
@@ -65,14 +62,15 @@ class Parser
 
         inline function checkAndCreateOption(file:String, i:Int, isOperator:Bool = false)
         {
-            if (isOption)
+            if ((flags & CHAR_TOKEN_OPTION) != 0)
             {
-                if (!isKey && currentValue == "" && !isOperator)
+                trace(flags);
+                if ((flags & CHAR_TOKEN_KEY) == 0 && currentValue == "" && !isOperator)
                 {
                     error("Key value pairs must be on the same line as each other.", file, i, i);
                 }
 
-                if (!wasStringValueForOption)
+                if ((flags & CHAR_TOKEN_WAS_STRING_OPTION) == 0)
                 {
                     value = currentValue;
                     currentValue = "";
@@ -81,9 +79,7 @@ class Parser
                 currentToken.options.set(key, value);
                 key = "";
                 value = "";
-                wasStringValueForOption = false;
-                isOption = false;
-                isKey = false;
+                flags &= ~(CHAR_TOKEN_WAS_STRING_OPTION | CHAR_TOKEN_OPTION | CHAR_TOKEN_KEY);
             }
         }
 
@@ -99,17 +95,17 @@ class Parser
     
             if (char == " ") // character is a space
             {
-                if (!isStringValue) // character is not wrapped around quotation marks
+                if ((flags & CHAR_TOKEN_STRING_VALUE) == 0) // character is not wrapped around quotation marks
                 {
-                    if (isIdentifier) // the last time we parsed, we identified an '@' symbol.
+                    if ((flags & CHAR_TOKEN_IDENTIFIER) != 0) // the last time we parsed, we identified an '@' symbol.
                     {
                         if (lastHardChar == "@")
                             error("Field Identifier has not been given a name.", file, i, i);
                         
-                        isIdentifier = false;
+                        flags &= ~(CHAR_TOKEN_IDENTIFIER);
                     }
-                    else if (isOption && isKey && lastHardChar != ":") // check for spaces in option key context
-                        spaceExists = true;
+                    else if ((flags & (CHAR_TOKEN_OPTION | CHAR_TOKEN_KEY)) == (CHAR_TOKEN_OPTION | CHAR_TOKEN_KEY) && lastHardChar != ":") // check for spaces in option key context
+                        flags |= (CHAR_TOKEN_KEY_SPACE);
                     else
                     {
                         // `currentValue` is supposedly our keyword if it does not fall under
@@ -122,11 +118,11 @@ class Parser
                                 isPartOfDefine = (currentToken.type == TOKEN_DEFINE 
                                     || currentToken.type == TOKEN_STRUCTURE);
 
-                            if (!isKeyword && !isOption && !isPartOfDefine)
+                            if ((flags & CHAR_TOKEN_OPTION) == 0 && !isKeyword && !isPartOfDefine)
                             {
                                 error('Identifier `$currentValue` is not a valid keyword.', file, i, i);
                             }
-                            else if (isKeyword && isOption)
+                            else if (isKeyword && (flags & CHAR_TOKEN_OPTION) != 0)
                             {
                                 error('You cannot use `$currentValue` as an option key as it is a keyword.', file, i, i);
                             }
@@ -176,38 +172,36 @@ class Parser
                 }
                 else
                 {
-                    if (!isKey)
+                    if ((flags & CHAR_TOKEN_KEY) == 0)
                         currentValue += char;
                 }
             }
             else if (char == ":")
             {
-                if (!isStringValue)
+                if ((flags & CHAR_TOKEN_STRING_VALUE) == 0)
                 {
                     checkAndCreateOption(file, i, true);
 
-                    isOption = true;
-                    isKey = true;
+                    flags |= (CHAR_TOKEN_OPTION | CHAR_TOKEN_KEY);
                 }
             }
             else if (char == "=")
             {
-                if (!isStringValue)
+                if ((flags & CHAR_TOKEN_STRING_VALUE) == 0)
                 {
-                    if (!isKey)
+                    if ((flags & CHAR_TOKEN_KEY) == 0)
                     {
                         error("You cannot have more than one equals sign for a key-value pair.", file, i, i);
                     }
 
-                    isKey = false;
-                    spaceExists = false;
+                    flags &= ~(CHAR_TOKEN_KEY | CHAR_TOKEN_KEY_SPACE);
                 }
             }
             else if (char == "\\")
             {
-                if (isStringValue)
+                if ((flags & CHAR_TOKEN_STRING_VALUE) != 0)
                 {
-                    isEscaping = true;
+                    flags |= (CHAR_TOKEN_ESCAPING);
                 }
                 else
                 {
@@ -216,7 +210,7 @@ class Parser
             }
             else if (char == "@")
             {
-                if (!isStringValue)
+                if ((flags & CHAR_TOKEN_STRING_VALUE) == 0)
                 {
                     if (currentToken != null)
                     {
@@ -232,7 +226,7 @@ class Parser
                     currentToken.line = line;
                     currentToken.fileResource = file;
                     currentToken.initField();
-                    isIdentifier = true;
+                    flags |= (CHAR_TOKEN_IDENTIFIER);
                 }
                 else
                 {
@@ -242,33 +236,31 @@ class Parser
             else if (char == "\"" || char == "'")
             {
                 var charValueTheSame = stringCharUsed == char.charCodeAt(0);
-                if (!isEscaping)
+                if ((flags & CHAR_TOKEN_ESCAPING) == 0)
                 {
-                    if (isStringValue)
+                    if ((flags & CHAR_TOKEN_STRING_VALUE) != 0)
                     {
-                        if (isOption)
+                        var mask = (CHAR_TOKEN_OPTION | CHAR_TOKEN_KEY);
+                        if ((flags & mask) == mask)
                         {
-                            if (isKey)
-                            {
-                                error("Key values inside of options cannot be a string.", file, i, i);
-                            }
+                            error("Key values inside of options cannot be a string.", file, i, i);
                         }
 
                         if (charValueTheSame)
                         {
-                            if (currentToken.type == TOKEN_FIELD && !isOption) // the string value is probably the display value
+                            if (currentToken.type == TOKEN_FIELD && (flags & CHAR_TOKEN_OPTION) == 0) // the string value is probably the display value
                             {
                                 currentToken.displayValue = currentValue;
                             }
-                            else if (isOption && !isKey)
+                            else if ((flags & CHAR_TOKEN_OPTION) != 0 && (flags & CHAR_TOKEN_KEY) == 0)
                             {
                                 value = currentValue;
-                                wasStringValueForOption = true;
+                                flags |= (CHAR_TOKEN_WAS_STRING_OPTION);
                             }
 
                             currentValue = "";
                             stringCharUsed = -1;
-                            isStringValue = false;
+                            flags &= ~(CHAR_TOKEN_STRING_VALUE);
                         }
                         else
                             currentValue += char;
@@ -276,20 +268,20 @@ class Parser
                     else
                     {   
                         stringCharUsed = char.charCodeAt(0);
-                        isStringValue = true;
+                        flags |= (CHAR_TOKEN_STRING_VALUE);
                     }
                 }
                 else
                 {
                     currentValue += char;
 
-                    if (isEscaping)
-                        isEscaping = false;
+                    if ((flags & CHAR_TOKEN_ESCAPING) != 0)
+                        flags &= ~(CHAR_TOKEN_ESCAPING);
                 }
             }
             else if ((char == "\r" && contents.charAt(i + 1) == "\n") || char == "\n")
             {
-                if (!isStringValue)
+                if ((flags & CHAR_TOKEN_STRING_VALUE) == 0)
                 {
                     // we could enter a new line and forget to check the definition.
                     // same as above.
@@ -297,7 +289,7 @@ class Parser
                     {
                         checkDefinition(file, i);
                     }
-                    checkAndCreateOption(file, i, true);
+                    checkAndCreateOption(file, i, (flags & CHAR_TOKEN_WAS_STRING_OPTION) != 0);
 
                     line++;
                     if (char == "\r")
@@ -312,23 +304,23 @@ class Parser
             }
             else
             {
-                if (isIdentifier)
+                if ((flags & CHAR_TOKEN_IDENTIFIER) != 0)
                 {
                     currentToken.identifier += char;
                 }
-                else if (isOption)
+                else if ((flags & CHAR_TOKEN_OPTION) != 0)
                 {
-                    if (isKey && !spaceExists)
+                    if ((flags & (CHAR_TOKEN_KEY | ~CHAR_TOKEN_KEY_SPACE)) != 0)
                     {
                         key += char;
                     }
-                    else if (isKey && spaceExists)
+                    else if ((flags & (CHAR_TOKEN_KEY | CHAR_TOKEN_KEY_SPACE)) != 0)
                     {
                         error('Keys in option context may not have spaces.', file, i - 1, i);
                     }
-                    else if (!isKey)
+                    else if ((flags & CHAR_TOKEN_KEY) != 0)
                     {
-                        if (wasStringValueForOption)
+                        if ((flags & CHAR_TOKEN_WAS_STRING_OPTION) == 0)
                         {
                             error("Value of the key-value pair in this option context contains string and non-string values.", file, i, i);
                         }

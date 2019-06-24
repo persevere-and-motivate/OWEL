@@ -1,9 +1,10 @@
 package owel;
 #if macro
 
-import haxe.macro.Compiler;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.macro.Type;
+using haxe.macro.ExprTools;
 
 import sys.FileSystem;
 

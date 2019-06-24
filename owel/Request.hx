@@ -1,6 +1,7 @@
 package owel;
 #if js
 
+import haxe.Json;
 import js.html.XMLHttpRequest;
 
 class Request
