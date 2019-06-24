@@ -519,7 +519,16 @@ class Parser
             }),
             name: typeName,
             pack: [ "data" ],
-            pos: Context.currentPos()
+            pos: Context.currentPos(),
+            meta: [
+                {
+                    name: ":build",
+                    pos: Context.currentPos(),
+                    params: [
+                        macro owel.Builder.finalise()
+                    ]
+                }
+            ]
         };
 
         Context.defineType(def);

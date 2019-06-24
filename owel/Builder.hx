@@ -81,6 +81,42 @@ class Builder
         }
     }
 
+    public macro static function finalise():Array<Field>
+    {
+        var fields = Context.getBuildFields();
+
+        //
+        // `all()` - Gets all the records for the server type.
+        //
+
+        {
+            var allBody = macro {
+                var items = manager.all();
+                var results = [];
+                for (item in items)
+                    results.push(item.toTypedef());
+                return results;
+            };
+
+            var allFunction:Function = {
+                args: [],
+                expr: allBody,
+                ret: null
+            };
+
+            var allField:Field = {
+                access: [APublic, AStatic],
+                kind: FFun(allFunction),
+                name: "all",
+                pos: Context.currentPos()
+            };
+
+            fields.push(allField);
+        }
+
+        return fields;
+    }
+
 }
 
 #end
