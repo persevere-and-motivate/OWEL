@@ -64,7 +64,6 @@ class Parser
         {
             if ((flags & CHAR_TOKEN_OPTION) != 0)
             {
-                trace(flags);
                 if ((flags & CHAR_TOKEN_KEY) == 0 && currentValue == "" && !isOperator)
                 {
                     error("Key value pairs must be on the same line as each other.", file, i, i);
@@ -310,7 +309,7 @@ class Parser
                 }
                 else if ((flags & CHAR_TOKEN_OPTION) != 0)
                 {
-                    if ((flags & (CHAR_TOKEN_KEY | ~CHAR_TOKEN_KEY_SPACE)) != 0)
+                    if ((flags & (CHAR_TOKEN_KEY)) != 0 && (flags & CHAR_TOKEN_KEY_SPACE) == 0)
                     {
                         key += char;
                     }
