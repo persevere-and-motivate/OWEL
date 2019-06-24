@@ -9,7 +9,7 @@ Currently, this version of OWEL supports Haxe 3.x or later. Newer versions may a
  * Generate RESTful function notation in server class definitions
  * Add ability to customise macro options
  * Add File Upload options
- * Implement a Router in some form
+ * Implement a Router in some form ![img](img/tick.png)
 
 ## Installation
 The latest version can be installed from here through haxe:
@@ -30,6 +30,8 @@ Firstly, you need to add a new line to your hxml file which uses the initialisat
 `--macro owel.Builder.generateTypes("owel/")`
 
 This is the function that will begin generating either the client or server-side code depending on which target language you use. The first argument is the folder which contains `*.owel` files that the parser within OWEL uses to generate code.
+
+Generated server types automatically get the `@:build(owel.Builder.finalise())` meta option which generates static functions that use the class type for instances.
 
 ## Creating an OWEL file
 `*.owel` files have very simple structure:
