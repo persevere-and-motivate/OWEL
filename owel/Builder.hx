@@ -84,6 +84,7 @@ class Builder
     public macro static function finalise():Array<Field>
     {
         var fields = Context.getBuildFields();
+        var className = Context.getLocalClass().get().name;
 
         //
         // `all()` - Gets all the records for the server type.
@@ -112,6 +113,103 @@ class Builder
             };
 
             fields.push(allField);
+        }
+
+        //
+        // `modify()` - Sets specific values dependent on RESTful notation for a given Database Object.
+        // Example: POST user/5  - Will UPDATE the User object with id 5.
+        //
+
+        {
+            var sharedTypePath = "shared.T" + className;
+            var tType = Context.toComplexType(Context.getType(sharedTypePath));
+            var cType = Context.toComplexType(Context.getType(className));
+            var cTypePath:TypePath = {
+                name: className,
+                pack: [ "data" ]
+            };
+
+            var dataSetters = [];
+            switch (tType)
+            {
+                case TAnonymous(fields):
+                {
+                    for (i in 0...fields.length)
+                    {
+                        var f = fields[i];
+                        var fieldName = f.name;
+                        dataSetters.push(macro { item.$fieldName = data.$fieldName; });
+                    }
+                }
+                default:
+            }
+
+           
+            var modifyBody = macro {
+                if (method == "GET" && id > -1)
+                {
+                    return manager.get(id).toTypedef();
+                }
+                else if (method == "DELETE" && id > -1)
+                {
+                    var item = manager.get(id);
+                    item.delete();
+                    return null;
+                }
+                else
+                {
+                    var input = sys.io.File.getContent("php://input");
+                    var data:$tType = haxe.Json.parse(input);
+                    var item:$cType = null;
+
+                    if (method == "PUT")
+                        item = new $cTypePath();
+                    else if (method == "POST" && id > -1)
+                        item = manager.get(id);
+                    
+                    if (id == null)
+                    {
+                        php.Web.setReturnCode(500);
+                        php.Lib.print('The item with the id ' + id + ' does not exist.');
+                        return null;
+                    }
+
+                    $a{dataSetters};
+
+                    if (method == "PUT")
+                        item.insert();
+                    else if (method == "POST")
+                        item.update();
+                    
+                    return item.toTypedef();
+                }
+            };
+
+            var modifyFunction:Function = {
+                args: [
+                    {
+                        name: "method",
+                        type: macro :String
+                    },
+                    {
+                        name: "id",
+                        type: macro :Int,
+                        opt: true,
+                        value: macro -1
+                    }
+                ],
+                expr: modifyBody,
+                ret: null
+            };
+
+            var modifyField:Field = {
+                access: [APublic, AStatic],
+                kind: FFun(modifyFunction),
+                name: "modify",
+                pos: Context.currentPos()
+            };
+
+            fields.push(modifyField);
         }
 
         return fields;

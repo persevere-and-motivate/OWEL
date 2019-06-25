@@ -31,6 +31,7 @@ class Router
         _routes = [];
         _routeCbs = [];
         _pages = [];
+        _currentPath = [];
 
         #if php
         _serverParam = serverParam;
