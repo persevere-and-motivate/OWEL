@@ -469,7 +469,7 @@ class Parser
         return typeValues;
     }
 
-    function defineClass(typeName:String, typeFields:Array<Field>, sharedTypeMembers:Array<String>)
+    function defineClass(typeName:String, typeFields:Array<Field>, sharedTypeMembers:Array<String>, searchableFields:Array<String>)
     {
         var type = Context.toComplexType(Context.getType("shared.T" + typeName));
         var assigns = [];
@@ -525,7 +525,7 @@ class Parser
                     name: ":build",
                     pos: Context.currentPos(),
                     params: [
-                        macro owel.Builder.finalise()
+                        macro owel.Builder.finalise($v{searchableFields})
                     ]
                 }
             ]
@@ -538,6 +538,7 @@ class Parser
     {
         var typeName = "";
         var typeFields = [];
+        var searchableFields = [];
 
         for (i in 0..._tokens.length)
         {
@@ -547,7 +548,7 @@ class Parser
             {
                 if (typeName != "")
                 {
-                    defineClass(typeName, typeFields, sharedTypeMembers);
+                    defineClass(typeName, typeFields, sharedTypeMembers, searchableFields);
                 }
 
                 typeName = t.identifier;
@@ -569,6 +570,11 @@ class Parser
                     name = name.replace(" ", "_").toLowerCase();
                 }
 
+                if (t.options.exists("searchable"))
+                {
+                    searchableFields.push(name);
+                }
+
                 var type = options.get(t.identifier, GET_SERVER_TYPE);
                 if (type == "")
                     Context.error('Identifier `${t.identifier}` has not been defined or the type representing the identifier is empty.', Context.currentPos());
@@ -583,7 +589,7 @@ class Parser
 
             if (i == _tokens.length - 1)
             {
-                defineClass(typeName, typeFields, sharedTypeMembers);
+                defineClass(typeName, typeFields, sharedTypeMembers, searchableFields);
             }
         }
     }

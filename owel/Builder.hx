@@ -81,7 +81,7 @@ class Builder
         }
     }
 
-    public macro static function finalise():Array<Field>
+    public macro static function finalise(searchableFields:Array<String>):Array<Field>
     {
         var fields = Context.getBuildFields();
         var className = Context.getLocalClass().get().name;
@@ -210,6 +210,42 @@ class Builder
             };
 
             fields.push(modifyField);
+        }
+
+        //
+        // `search()` - Search the specified default searchable field. Uses only the :searchable options
+        // in fields.
+        //
+        {
+            var searchable = "$" + searchableFields[0];
+
+            var searchBody = macro {
+                var items = manager.search($i{searchable}.like(value));
+                var results = [];
+                for (item in items)
+                    results.push(item.toTypedef());
+                return results;
+            };
+
+            var searchFunction:Function = {
+                args: [
+                    {
+                        name: "value",
+                        type: macro :String
+                    }
+                ],
+                expr: searchBody,
+                ret: null
+            };
+
+            var searchField:Field = {
+                access: [APublic, AStatic],
+                kind: FFun(searchFunction),
+                name: "search",
+                pos: Context.currentPos()
+            };
+
+            fields.push(searchField);
         }
 
         return fields;
